@@ -7,10 +7,8 @@
 )]
 #[macro_use]
 extern crate rocket;
-extern crate crossbeam_channel;
 extern crate ws;
 
-use crossbeam_channel::unbounded;
 use std::thread;
 
 mod generator;

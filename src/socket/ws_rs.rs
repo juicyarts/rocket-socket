@@ -10,9 +10,9 @@ use std::thread;
 use serde_json::json;
 
 use crate::generator::generator;
-use crate::models::channelMessage::ChannelMessage;
+use crate::models::channel_message::ChannelMessage;
 use crate::models::server::Server;
-use crate::models::socketMessage::SocketMessage;
+use crate::models::socket_message::SocketMessage;
 
 impl Handler for Server {
     fn on_request(&mut self, req: &Request) -> WsResult<(Response)> {
@@ -37,8 +37,8 @@ impl Handler for Server {
     }
 
     fn on_message(&mut self, message: Message) -> WsResult<()> {
-        let foo = message.into_text().unwrap();
-        let client_config: SocketMessage = serde_json::from_str(&foo).unwrap();
+        let client_message = message.into_text().unwrap();
+        let client_config: SocketMessage = serde_json::from_str(&client_message).unwrap();
 
         println!(
             "Interval set to: {},  Sample Size is: {}",
@@ -55,16 +55,15 @@ impl Handler for Server {
             )
             .unwrap();
 
-        let bar: ws::Sender = self.out.clone();
+        let sender: ws::Sender = self.out.clone();
 
-        thread::Builder::new()
-            .name("client Thread".into())
-            .spawn(move || {
-                generator::generate(ChannelMessage {
-                    action: String::from("configReceived"),
-                    data: foo,
-                }, bar)
-            }).unwrap();
+        // FIXME: find a way to stop th generator thread on clinet termination
+        thread::spawn(move || {
+            generator::generate(ChannelMessage {
+                action: String::from("configReceived"),
+                data: client_message,
+            }, sender)
+        });
 
         Ok(())
     }

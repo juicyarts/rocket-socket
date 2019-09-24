@@ -1,5 +1,5 @@
-pub mod channelMessage;
+pub mod channel_message;
 pub mod server;
-pub mod socketMessage;
+pub mod socket_message;
 pub mod device;
-pub mod clientConfiguration;
+pub mod client_configuration;

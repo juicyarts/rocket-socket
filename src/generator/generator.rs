@@ -7,10 +7,9 @@ use serde_json::json;
 use rand::Rng;
 use std::{thread, time};
 
-use crate::models::channelMessage::ChannelMessage;
-use crate::models::clientConfiguration::ClientConfiguration;
+use crate::models::channel_message::ChannelMessage;
+use crate::models::client_configuration::ClientConfiguration;
 use crate::models::device::Device;
-
 
 pub fn generate(config: ChannelMessage, sender: ws::Sender) -> () {
     generate_fake_data(sender, config.data);
@@ -18,7 +17,7 @@ pub fn generate(config: ChannelMessage, sender: ws::Sender) -> () {
 
 fn generate_fake_data(sender: ws::Sender, client_config: std::string::String) -> () {
     let mut rng = rand::thread_rng();
-    let config: ClientConfiguration = serde_json::from_str(&client_config).unwrap();;
+    let config: ClientConfiguration = serde_json::from_str(&client_config).unwrap();
 
     loop {
         let mut devices: Vec<Device> = Vec::new();
@@ -29,9 +28,6 @@ fn generate_fake_data(sender: ws::Sender, client_config: std::string::String) ->
             };
             devices.push(device);
         }
-
-        println!("sending message out!");
-
         sender
             .send(
                 json!({
