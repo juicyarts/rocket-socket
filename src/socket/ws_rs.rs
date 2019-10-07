@@ -1,12 +1,15 @@
-use ws::{
-    listen, CloseCode, Error, Handler, Handshake, Message, Request, Response, Result as WsResult,
-};
-
 extern crate rand;
 extern crate serde;
 extern crate serde_json;
 
+use ws::{
+    listen, CloseCode, Error, Handler, Handshake, Message, Request, Response, Result as WsResult,
+};
+
 use std::thread;
+
+use crossbeam_channel::bounded;
+
 use serde_json::json;
 
 use crate::generator::generator;
@@ -49,33 +52,62 @@ impl Handler for Server {
             .send(
                 json!({
                 "topic": "status",
-                "value": "ok",
+                "data": "ok",
                 })
                 .to_string(),
             )
             .unwrap();
 
         let sender: ws::Sender = self.out.clone();
+        let receiver = self.queue_receiver.clone();
 
-        // FIXME: find a way to stop th generator thread on clinet termination
-        thread::spawn(move || {
-            generator::generate(ChannelMessage {
-                action: String::from("configReceived"),
-                data: client_message,
-            }, sender)
-        });
+        if !self.child_thread_started {
+            self.child_thread_started = true;
+            thread::spawn(move || {
+                generator::generate(
+                    ChannelMessage {
+                        action: String::from("configReceived"),
+                        data: client_message,
+                    },
+                    sender,
+                    receiver,
+                )
+            });
+        } else {
+            self.queue_sender
+                .send(ChannelMessage {
+                    action: String::from("configUpdated"),
+                    data: client_message,
+                })
+                .unwrap();
+        }
 
         Ok(())
     }
 
     fn on_close(&mut self, code: CloseCode, reason: &str) {
         match code {
-            CloseCode::Normal => println!("The client is done with the connection."),
-            CloseCode::Away => println!("The client is leaving the site."),
-            CloseCode::Abnormal => {
-                println!("Closing handshake failed! Unable to obtain closing status from client.")
+            CloseCode::Normal => {
+                println!("The client is done with the connection.");
+                self.queue_sender
+                    .send(ChannelMessage {
+                        action: String::from("clientClosedConnection"),
+                        data: String::from(""),
+                    })
+                    .unwrap();
             }
-            _ => println!("The client encountered an error: {}", reason),
+            CloseCode::Abnormal => {
+                println!("Closing handshake failed! Unable to obtain closing status from client.");
+                self.queue_sender
+                    .send(ChannelMessage {
+                        action: String::from("clientClosedConnection"),
+                        data: String::from(""),
+                    })
+                    .unwrap();
+            }
+            _ => {
+                println!("The client encountered an error: {}", reason);
+            }
         }
     }
 
@@ -88,9 +120,14 @@ pub fn websocket() -> () {
     println!("Web Socket Server is ready at ws://127.0.0.1:7777/ws");
     println!("Server is ready at http://127.0.0.1:7777/");
 
-    // Listen on an address and call the closure for each connection
-    listen("127.0.0.1:7777", |out| Server {
-        out,
+    listen("127.0.0.1:7777", |out| {
+        let (s1, r1) = bounded::<ChannelMessage>(0);
+        Server {
+            out,
+            child_thread_started: false,
+            queue_sender: s1,
+            queue_receiver: r1,
+        }
     })
     .unwrap()
 }

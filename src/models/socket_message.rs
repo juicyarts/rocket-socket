@@ -13,4 +13,3 @@ pub struct SocketMessage {
     pub interval: u64,
     pub sample_size: i16,
 }
-

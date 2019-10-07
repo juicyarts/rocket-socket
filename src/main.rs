@@ -8,6 +8,7 @@
 #[macro_use]
 extern crate rocket;
 extern crate ws;
+extern crate crossbeam_channel;
 
 use std::thread;
 
